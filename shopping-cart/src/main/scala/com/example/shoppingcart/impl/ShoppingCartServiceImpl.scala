@@ -18,40 +18,45 @@ class ShoppingCartServiceImpl(persistentEntityRegistry: PersistentEntityRegistry
   /**
     * Looks up the shopping cart entity for the given ID.
     */
-  private def entityRef(id: String) =
-    persistentEntityRegistry.refFor[ShoppingCartEntity](id)
+  private def entityRef(id: String) = ???
+
+//    persistentEntityRegistry.refFor[ShoppingCartEntity](id)
 
   override def get(id: String): ServiceCall[NotUsed, ShoppingCart] = ServiceCall { _ =>
-    entityRef(id)
-      .ask(Get)
-      .map(cart => convertShoppingCart(id, cart))
+//    entityRef(id)
+//      .ask(Get)
+//      .map(cart => convertShoppingCart(id, cart))
+    ???
   }
 
   override def updateItem(id: String): ServiceCall[ShoppingCartItem, Done] = ServiceCall { update =>
-    entityRef(id)
-      .ask(UpdateItem(update.productId, update.quantity))
-      .recover {
-        case ShoppingCartException(message) => throw BadRequest(message)
-      }
+//    entityRef(id)
+//      .ask(UpdateItem(update.productId, update.quantity))
+//      .recover {
+//        case ShoppingCartException(message) => throw BadRequest(message)
+//      }
+    ???
   }
 
   override def checkout(id: String): ServiceCall[NotUsed, Done] = ServiceCall { _ =>
-    entityRef(id)
-      .ask(Checkout)
-      .recover {
-        case ShoppingCartException(message) => throw BadRequest(message)
-      }
+//    entityRef(id)
+//      .ask(Checkout)
+//      .recover {
+//        case ShoppingCartException(message) => throw BadRequest(message)
+//      }
+    ???
   }
 
   override def shoppingCartTopic: Topic[ShoppingCart] = TopicProducer.singleStreamWithOffset { fromOffset =>
-    persistentEntityRegistry.eventStream(ShoppingCartEvent.Tag, fromOffset)
-      .filter(_.event.isInstanceOf[CheckedOut.type])
-      .mapAsync(4) {
-        case EventStreamElement(id, _, offset) =>
-          entityRef(id)
-            .ask(Get)
-            .map(cart => convertShoppingCart(id, cart) -> offset)
-      }
+//    persistentEntityRegistry.eventStream(ShoppingCartEvent.Tag, fromOffset)
+//      .filter(_.event.isInstanceOf[CheckedOut.type])
+//      .mapAsync(4) {
+//        case EventStreamElement(id, _, offset) =>
+//          entityRef(id)
+//            .ask(Get)
+//            .map(cart => convertShoppingCart(id, cart) -> offset)
+//      }
+    ???
     }
 
   private def convertShoppingCart(id: String, cart: ShoppingCartState) = {

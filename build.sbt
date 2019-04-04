@@ -9,6 +9,9 @@ val scalaTest = "org.scalatest" %% "scalatest" % "3.0.7" % Test
 val akkaDiscoveryServiceLocator = "com.lightbend.lagom" %% "lagom-scaladsl-akka-discovery-service-locator" % "1.0.0"
 val akkaDiscoveryKubernetesApi = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % "1.0.0"
 
+lazy val akkaVersion = "2.5.21"
+val akkaPersistenceTyped = "com.typesafe.akka" %% "akka-persistence-typed" % akkaVersion
+
 ThisBuild / scalacOptions ++= List("-encoding", "utf8", "-deprecation", "-feature", "-unchecked", "-Xfatal-warnings")
 
 def dockerSettings = Seq(
@@ -39,6 +42,7 @@ lazy val `shopping-cart` = (project in file("shopping-cart"))
       lagomScaladslPersistenceJdbc,
       lagomScaladslKafkaBroker,
       lagomScaladslTestKit,
+      akkaPersistenceTyped,
       macwire,
       scalaTest,
       postgresDriver,

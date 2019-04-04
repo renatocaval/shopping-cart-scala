@@ -7,7 +7,7 @@ import com.lightbend.lagom.scaladsl.testkit.PersistentEntityTestDriver
 import com.lightbend.lagom.scaladsl.playjson.JsonSerializerRegistry
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
-class ShoppingCartEntitySpec extends WordSpec with Matchers with BeforeAndAfterAll {
+class ShoppingCartModelSpec extends WordSpec with Matchers with BeforeAndAfterAll {
 
   private val system = ActorSystem("ShoppingcartEntitySpec",
     JsonSerializerRegistry.actorSystemSetupFor(ShoppingCartSerializerRegistry))
