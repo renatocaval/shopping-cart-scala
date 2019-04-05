@@ -1,7 +1,7 @@
 package com.example.shoppingcart.impl
 
 import akka.actor.ExtendedActorSystem
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, ActorRefResolver, ActorSystem}
 import com.lightbend.lagom.scaladsl.playjson.{JsonSerializer, JsonSerializerRegistry}
 import play.api.libs.json._
 
@@ -14,19 +14,17 @@ trait AkkaTypedJsonSerializers {
   implicit def actorRefFormat[T:Format]: Format[ActorRef[T]] =
     new Format[ActorRef[T]] {
 
-      import akka.actor.typed.scaladsl.adapter._
-      private val untypedSystem = actorSystem.toUntyped.asInstanceOf[ExtendedActorSystem]
+      private val actorRefResolver = ActorRefResolver(actorSystem)
 
       override def writes(ref: ActorRef[T]): JsValue = {
-        val address = ref.path.toSerializationFormatWithAddress(untypedSystem.provider.getDefaultAddress)
-        JsString(address)
+        JsString(actorRefResolver.toSerializationFormat(ref))
       }
 
 
       override def reads(json: JsValue): JsResult[ActorRef[T]] = {
         json match {
           case serializedActorRef: JsString =>
-            val actorRef: ActorRef[T] = untypedSystem.provider.resolveActorRef(serializedActorRef.value)
+            val actorRef: ActorRef[T] = actorRefResolver.resolveActorRef(serializedActorRef.value)
             JsSuccess(actorRef)
 
           case _ =>  JsError(s"Can't deserialize $json to ActorRef")
