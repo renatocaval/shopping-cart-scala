@@ -11,6 +11,7 @@ val akkaDiscoveryKubernetesApi = "com.lightbend.akka.discovery" %% "akka-discove
 
 lazy val akkaVersion = "2.5.21"
 val akkaPersistenceTyped = "com.typesafe.akka" %% "akka-persistence-typed" % akkaVersion
+val akkaShardingTyped = "com.typesafe.akka" %% "akka-cluster-sharding-typed" % akkaVersion
 
 ThisBuild / scalacOptions ++= List("-encoding", "utf8", "-deprecation", "-feature", "-unchecked", "-Xfatal-warnings")
 
@@ -42,6 +43,7 @@ lazy val `shopping-cart` = (project in file("shopping-cart"))
       lagomScaladslPersistenceJdbc,
       lagomScaladslKafkaBroker,
       lagomScaladslTestKit,
+      akkaShardingTyped,
       akkaPersistenceTyped,
       macwire,
       scalaTest,

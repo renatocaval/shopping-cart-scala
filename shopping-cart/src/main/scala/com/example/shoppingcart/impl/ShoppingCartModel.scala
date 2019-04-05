@@ -2,47 +2,52 @@ package com.example.shoppingcart.impl
 
 import akka.Done
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
+import akka.cluster.sharding.typed.scaladsl._
+import akka.persistence.journal.Tagged
 import akka.persistence.typed.ExpectingReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
+import com.lightbend.lagom.scaladsl.persistence.{AggregateEvent, AggregateEventShards, AggregateEventTag}
 import com.lightbend.lagom.scaladsl.playjson.{JsonSerializer, JsonSerializerRegistry}
 import play.api.libs.json.{Format, _}
 
 import scala.collection.immutable.Seq
 
 /**
- * This is an event sourced entity. It has a state, [[ShoppingCartState]], which
- * stores the current shopping cart items and whether it's checked out.
+ * That's just an example. Not sure if we need such a wrapping thing,
+ * but there are a few things that need to be done correctly and well aligned before using an entity.
  *
- * Event sourced entities are interacted with by sending them commands. This
- * entity supports three commands, an [[UpdateItem]] crommand, which is used to
- * update the quantity of an item in the cart, a [[Checkout]] command which is
- * used to set checkout the shopping cart, and a [[Get]] command, which is a read
- * only command which returns the current shopping cart state.
- *
- * Commands get translated to events, and it's the events that get persisted by
- * the entity. Each event will have an event handler registered for it, and an
- * event handler simply applies an event to the current state. This will be done
- * when the event is first created, and it will also be done when the entity is
- * loaded from the database - each event will be replayed to recreate the state
- * of the entity.
- *
- * This entity defines two events, the [[ItemUpdated]] event, which is emitted
- * when a [[UpdateItem]] command is received, and a [[CheckedOut]] event, which
- * is emitted when a [[Checkout]] command is received.
+ * Here we inject the cluster sharding, wire the behavior, adding a tagger and making it easier to retrieve an instance
  */
-object ShoppingCartModel {
+class ShoppingCartModel(clusterSharding: ClusterSharding) {
 
-  //  import play.api.libs.functional.syntax._
+  type Command = ShoppingCartCommand[ShoppingCartReply]
 
-  def behavior(shoppingCartId: String): Behavior[ShoppingCartCommand[ShoppingCartReply]] = {
-    EventSourcedBehavior.withEnforcedReplies[ShoppingCartCommand[ShoppingCartReply], ShoppingCartEvent, ShoppingCartState](
-      persistenceId = PersistenceId(s"ShoppingCart|$shoppingCartId"),
+  val typeKey = EntityTypeKey[Command]("shopping-cart")
+
+  def behavior(entityContext: EntityContext): Behavior[Command] = {
+
+    // we need to isolate the persistenceId because
+    // it's required for the sharded tagging in Lagom
+    val persistenceId = PersistenceId(s"ShoppingCart|${entityContext.entityId}")
+
+    EventSourcedBehavior.withEnforcedReplies[Command, ShoppingCartEvent, ShoppingCartState](
+      persistenceId = persistenceId,
       emptyState = ShoppingCartState.empty,
       commandHandler = (cart, cmd) => cart.applyCommand(cmd),
       eventHandler = (cart, evt) => cart.applyEvent(evt)
     )
+    // this is quite different than current Lagom experience
+    // we need to have a tagger defined somewhere so we can use it in distributed projections as well
+    // Lagom adds it to the Event, for instance.
+    .withTagger(Tagger.sharded(persistenceId.id, 10, "ShoppingCartEvent"))
+
   }
+
+  clusterSharding.init(Entity(typeKey, ctx => behavior(ctx)))
+
+  def entityRefFor(shoppingCartId: String): EntityRef[Command] =
+    clusterSharding.entityRefFor(typeKey, shoppingCartId)
 }
 
 
@@ -94,14 +99,14 @@ case class ShoppingCartState(items: Map[String, Int], checkedOut: Boolean) {
     }
   }
 
-  def updateItem(productId: String, quantity: Int) = {
+  private def updateItem(productId: String, quantity: Int) = {
     quantity match {
       case 0 => copy(items = items - productId)
       case _ => copy(items = items + (productId -> quantity))
     }
   }
 
-  def checkout = copy(checkedOut = true)
+  private def checkout = copy(checkedOut = true)
 }
 
 object ShoppingCartState {
@@ -207,7 +212,7 @@ object CurrentState {
 /**
  * This interface defines all the commands that the ShoppingCartEntity supports.
  */
-sealed trait ShoppingCartCommand[R <: ShoppingCartReply] extends ExpectingReply[R]
+sealed trait ShoppingCartCommand[R] extends ExpectingReply[R]
 
 /**
  * A command to update an item.

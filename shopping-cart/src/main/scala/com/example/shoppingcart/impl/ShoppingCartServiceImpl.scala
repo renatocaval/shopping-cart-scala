@@ -1,5 +1,6 @@
 package com.example.shoppingcart.impl
 
+import akka.util.Timeout
 import akka.{Done, NotUsed}
 import com.example.shoppingcart.api.{ShoppingCart, ShoppingCartItem, ShoppingCartService}
 import com.lightbend.lagom.scaladsl.api.ServiceCall
@@ -9,23 +10,22 @@ import com.lightbend.lagom.scaladsl.broker.TopicProducer
 import com.lightbend.lagom.scaladsl.persistence.{EventStreamElement, PersistentEntityRegistry}
 
 import scala.concurrent.ExecutionContext
-
+import scala.concurrent.duration._
 /**
   * Implementation of the [[ShoppingCartService]].
   */
-class ShoppingCartServiceImpl(persistentEntityRegistry: PersistentEntityRegistry)(implicit ec: ExecutionContext) extends ShoppingCartService {
+class ShoppingCartServiceImpl(shoppingCartModel: ShoppingCartModel)(implicit ec: ExecutionContext) extends ShoppingCartService {
 
+  implicit val timeout = Timeout(3.seconds)
   /**
     * Looks up the shopping cart entity for the given ID.
     */
-  private def entityRef(id: String) = ???
+  private def entityRef(id: String) = shoppingCartModel.entityRefFor(id)
 
 //    persistentEntityRegistry.refFor[ShoppingCartEntity](id)
 
   override def get(id: String): ServiceCall[NotUsed, ShoppingCart] = ServiceCall { _ =>
-//    entityRef(id)
-//      .ask(Get)
-//      .map(cart => convertShoppingCart(id, cart))
+//    entityRef(id).ask(Get(_)).map(cart => convertShoppingCart(id, cart.state))
     ???
   }
 

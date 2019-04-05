@@ -32,6 +32,8 @@ abstract class ShoppingCartApplication(context: LagomApplicationContext)
     with LagomKafkaComponents
     with AhcWSComponents {
 
+  lazy val shoppingCartModel = wire[ShoppingCartModel]
+
   // Bind the service that this server provides
   override lazy val lagomServer = serverFor[ShoppingCartService](wire[ShoppingCartServiceImpl])
 
