@@ -21,8 +21,9 @@ import scala.collection.immutable.Seq
  */
 class ShoppingCartModel(clusterSharding: ClusterSharding) {
 
-  type Command = ShoppingCartCommand[ShoppingCartReply]
+  type Command = ShoppingCartCommand
 
+  // NEW in AkkaTyped
   val typeKey = EntityTypeKey[Command]("shopping-cart")
 
   def behavior(entityContext: EntityContext): Behavior[Command] = {
@@ -37,19 +38,19 @@ class ShoppingCartModel(clusterSharding: ClusterSharding) {
       commandHandler = (cart, cmd) => cart.applyCommand(cmd),
       eventHandler = (cart, evt) => cart.applyEvent(evt)
     )
-    // this is quite different than current Lagom experience
-    // we need to have a tagger defined somewhere so we can use it in distributed projections as well
-    // Lagom adds it to the Event, for instance.
-    .withTagger(Tagger.sharded(persistenceId.id, 10, "ShoppingCartEvent"))
+      // this is quite different than current Lagom experience
+      // we need to have a tagger defined somewhere so we can use it in distributed projections as well
+      // Lagom adds it to the Event, for instance.
+      .withTagger(Tagger.sharded(persistenceId.id, 10, "ShoppingCartEvent"))
 
   }
 
+  // at this point we should be able to pass ShardingSettings
   clusterSharding.init(Entity(typeKey, ctx => behavior(ctx)))
 
-  def entityRefFor(shoppingCartId: String): EntityRef[Command] =
+  def entityRefFor(shoppingCartId: String): EntityRef[ShoppingCartCommand] =
     clusterSharding.entityRefFor(typeKey, shoppingCartId)
 }
-
 
 
 /**
@@ -57,7 +58,7 @@ class ShoppingCartModel(clusterSharding: ClusterSharding) {
  */
 case class ShoppingCartState(items: Map[String, Int], checkedOut: Boolean) {
 
-  def applyCommand(cmd: ShoppingCartCommand[_]): ReplyEffect[ShoppingCartEvent, ShoppingCartState] =
+  def applyCommand(cmd: ShoppingCartCommand): ReplyEffect[ShoppingCartEvent, ShoppingCartState] =
     cmd match {
       case x: UpdateItem => onUpdateItem(x)
       case x: Checkout => onCheckout(x)
@@ -167,6 +168,28 @@ case object CheckedOut extends CheckedOut {
 
 sealed trait ShoppingCartReply
 
+object ShoppingCartReply {
+  implicit val format: Format[ShoppingCartReply] = new Format[ShoppingCartReply] {
+
+    override def reads(json: JsValue): JsResult[ShoppingCartReply] = {
+      if ((json \ "reason").isDefined)
+        Json.fromJson[Rejected](json)
+      else if ((json  \ "state").isDefined)
+        Json.fromJson[CurrentState](json)
+      else
+        Json.fromJson[Accepted](json)
+    }
+
+    override def writes(o: ShoppingCartReply): JsValue = {
+      o match {
+        case Accepted => Json.toJson(Accepted)
+        case rej: Rejected => Json.toJson(rej)
+        case state: CurrentState => Json.toJson(state)
+      }
+    }
+  }
+}
+
 sealed trait Confirmation extends ShoppingCartReply
 
 case object Confirmation {
@@ -212,7 +235,7 @@ object CurrentState {
 /**
  * This interface defines all the commands that the ShoppingCartEntity supports.
  */
-sealed trait ShoppingCartCommand[R] extends ExpectingReply[R]
+sealed trait ShoppingCartCommand extends ExpectingReply[ShoppingCartReply]
 
 /**
  * A command to update an item.
@@ -220,10 +243,10 @@ sealed trait ShoppingCartCommand[R] extends ExpectingReply[R]
  * It has a reply type of [[Done]], which is sent back to the caller
  * when all the events emitted by this command are successfully persisted.
  */
-case class UpdateItem(productId: String, quantity: Int, replyTo: ActorRef[Confirmation]) extends ShoppingCartCommand[Confirmation]
+case class UpdateItem(productId: String, quantity: Int, replyTo: ActorRef[ShoppingCartReply]) extends ShoppingCartCommand
 
-object UpdateItem extends ReplyToFormat[UpdateItem, Confirmation] {
-  override implicit def format(implicit actorRefFormat: Format[ActorRef[Confirmation]]): Format[UpdateItem] = Json.format
+object UpdateItem extends ReplyToFormat[UpdateItem, ShoppingCartReply] {
+  override implicit def format(implicit actorRefFormat: Format[ActorRef[ShoppingCartReply]]): Format[UpdateItem] = Json.format
 }
 
 /**
@@ -232,10 +255,10 @@ object UpdateItem extends ReplyToFormat[UpdateItem, Confirmation] {
  * The reply type is the ShoppingCart, and will contain the message to say to that
  * person.
  */
-case class Get(replyTo: ActorRef[CurrentState]) extends ShoppingCartCommand[CurrentState]
+case class Get(replyTo: ActorRef[ShoppingCartReply]) extends ShoppingCartCommand
 
-object Get extends ReplyToFormat[Get, CurrentState] {
-  override implicit def format(implicit actorRefFormat: Format[ActorRef[CurrentState]]): Format[Get] = Json.format
+object Get extends ReplyToFormat[Get, ShoppingCartReply] {
+  override implicit def format(implicit actorRefFormat: Format[ActorRef[ShoppingCartReply]]): Format[Get] = Json.format
 }
 
 /**
@@ -244,10 +267,10 @@ object Get extends ReplyToFormat[Get, CurrentState] {
  * The reply type is the Done, which will be returned when the events have been
  * emitted.
  */
-case class Checkout(replyTo: ActorRef[Confirmation]) extends ShoppingCartCommand[Confirmation]
+case class Checkout(replyTo: ActorRef[ShoppingCartReply]) extends ShoppingCartCommand
 
-object Checkout extends ReplyToFormat [Checkout, Confirmation] {
-  override implicit def format(implicit actorRefFormat: Format[ActorRef[Confirmation]]): Format[Checkout] = Json.format
+object Checkout extends ReplyToFormat[Checkout, ShoppingCartReply] {
+  override implicit def format(implicit actorRefFormat: Format[ActorRef[ShoppingCartReply]]): Format[Checkout] = Json.format
 }
 
 /**

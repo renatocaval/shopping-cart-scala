@@ -9,7 +9,7 @@ val scalaTest = "org.scalatest" %% "scalatest" % "3.0.7" % Test
 val akkaDiscoveryServiceLocator = "com.lightbend.lagom" %% "lagom-scaladsl-akka-discovery-service-locator" % "1.0.0"
 val akkaDiscoveryKubernetesApi = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % "1.0.0"
 
-lazy val akkaVersion = "2.5.21"
+lazy val akkaVersion = "2.5.22"
 val akkaPersistenceTyped = "com.typesafe.akka" %% "akka-persistence-typed" % akkaVersion
 val akkaShardingTyped = "com.typesafe.akka" %% "akka-cluster-sharding-typed" % akkaVersion
 

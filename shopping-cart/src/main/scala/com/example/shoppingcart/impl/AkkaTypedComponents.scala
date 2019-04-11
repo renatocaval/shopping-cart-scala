@@ -6,5 +6,5 @@ import akka.actor.typed.scaladsl.adapter._
 
 trait AkkaTypedComponents  {
   def actorSystem: ActorSystem
-  def typedActorSystem: TypedActorSystem[Nothing] = actorSystem.toTyped
+  def typedActorSystem: TypedActorSystem[_] = actorSystem.toTyped
 }
