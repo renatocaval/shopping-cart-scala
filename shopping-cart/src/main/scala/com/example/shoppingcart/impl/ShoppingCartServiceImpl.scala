@@ -24,18 +24,15 @@ class ShoppingCartServiceImpl(shoppingCartModel: ShoppingCartModel)(implicit ec:
     */
   private def entityRef(id: String) = shoppingCartModel.entityRefFor(id)
 
-//    persistentEntityRegistry.refFor[ShoppingCartEntity](id)
-
   override def get(id: String): ServiceCall[NotUsed, ShoppingCart] = ServiceCall { _ =>
-    entityRef(id).ask(Get(_))
-      .mapTo[CurrentState]
+    entityRef(id)
+      .ask(Get(_))
       .map(cart => convertShoppingCart(id, cart.state))
   }
 
   override def updateItem(id: String): ServiceCall[ShoppingCartItem, Done] = ServiceCall { update =>
     entityRef(id)
       .ask(UpdateItem(update.productId, update.quantity, _))
-      .mapTo[Confirmation]
       .map {
         case Accepted => Done
         case Rejected(msg) => throw BadRequest(msg)
@@ -46,7 +43,6 @@ class ShoppingCartServiceImpl(shoppingCartModel: ShoppingCartModel)(implicit ec:
   override def checkout(id: String): ServiceCall[NotUsed, Done] = ServiceCall { _ =>
     entityRef(id)
       .ask(Checkout(_))
-      .mapTo[Confirmation]
       .map {
         case Accepted => Done
         case Rejected(msg) => throw BadRequest(msg)
