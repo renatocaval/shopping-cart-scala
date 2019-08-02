@@ -10,7 +10,7 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffec
 import com.lightbend.lagom.scaladsl.persistence.{AggregateEvent, AggregateEventShards, AggregateEventTag}
 import com.lightbend.lagom.scaladsl.playjson.{JsonSerializer, JsonSerializerRegistry}
 import play.api.libs.json.{Format, _}
-
+import play.scaladsl.cqrs._
 import scala.collection.immutable.Seq
 
 /**
@@ -19,37 +19,21 @@ import scala.collection.immutable.Seq
  *
  * Here we inject the cluster sharding, wire the behavior, adding a tagger and making it easier to retrieve an instance
  */
-class ShoppingCartModel(clusterSharding: ClusterSharding) {
+class ShoppingCartModel(clusterSharding: ClusterSharding) extends CqrsModel[ShoppingCartCommand[_], ShoppingCartEvent, ShoppingCartState](clusterSharding) {
 
-  type Command = ShoppingCartCommand[_]
+  val name = "shopping-cart"
 
-  // NEW in AkkaTyped
-  val typeKey = EntityTypeKey[Command]("shopping-cart")
-
-  def behavior(entityContext: EntityContext): Behavior[Command] = {
-
-    // we need to isolate the persistenceId because
-    // it's required for the sharded tagging in Lagom
-    val persistenceId = PersistenceId(s"ShoppingCart|${entityContext.entityId}")
-
-    EventSourcedBehavior.withEnforcedReplies[Command, ShoppingCartEvent, ShoppingCartState](
-      persistenceId = persistenceId,
-      emptyState = ShoppingCartState.empty,
-      commandHandler = (cart, cmd) => cart.applyCommand(cmd),
-      eventHandler = (cart, evt) => cart.applyEvent(evt)
-    )
-      // this is quite different than current Lagom experience
-      // we need to have a tagger defined somewhere so we can use it in distributed projections as well
-      // Lagom adds it to the Event, for instance.
-      .withTagger(Tagger.sharded(persistenceId.id, 10, "ShoppingCartEvent"))
-
-  }
-
-  // at this point we should be able to pass ShardingSettings
-  clusterSharding.init(Entity(typeKey, ctx => behavior(ctx)))
-
-  def entityRefFor(shoppingCartId: String): EntityRef[Command] =
-    clusterSharding.entityRefFor(typeKey, shoppingCartId)
+  def tagger(entityId: String) = Tagger.sharded(entityId, 10, "ShoppingCartEvent")
+  
+  def behavior(entityContext: EntityContext) = 
+    
+      EventSourcedBehavior.withEnforcedReplies[ShoppingCartCommand[_], ShoppingCartEvent, ShoppingCartState](
+        persistenceId = PersistenceId(entityContext.entityId),
+        emptyState = ShoppingCartState.empty,
+        commandHandler = (cart, cmd) => cart.applyCommand(cmd),
+        eventHandler = (cart, evt) => cart.applyEvent(evt)
+      )
+  
 }
 
 

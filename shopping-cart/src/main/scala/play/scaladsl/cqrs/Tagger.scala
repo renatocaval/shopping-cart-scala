@@ -1,7 +1,4 @@
-package com.example.shoppingcart.impl
-
-import akka.persistence.typed.PersistenceId
-import com.lightbend.lagom.scaladsl.persistence.{AggregateEvent, AggregateEventShards, AggregateEventTag}
+package play.scaladsl.cqrs
 
 object Tagger {
 
